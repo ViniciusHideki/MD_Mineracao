@@ -1,0 +1,982 @@
+---
+title: "Palinha da Lista 2"
+author: "Luizao,Lubao,Hidekao"
+date: "XX/11/2021"
+#output: rmdformats::downcute
+output: pdf_document
+---
+
+Instalando pacotes.
+
+```{r warning=FALSE, message=F}
+if(!require(dplyr)){install.packages("dplyr")}
+library(dplyr)
+### matrix termo doc
+if(!require(tm)){install.packages("tm")}
+library(tm)
+### operacoes na matrix termo-doc
+if(!require(slam)){install.packages("slam")}
+library(slam)
+### bibliotecas de stopwords
+if(!require(stopwords)){install.packages("stopwords")}
+library(stopwords)
+### bibliotecas de stopwords
+if(!require(SnowballC)){install.packages("SnowballC")}
+library(SnowballC)
+### nuvem de palavras
+if(!require(wordcloud)){install.packages("wordcloud")}
+library(wordcloud)
+### bibliotecas de stopwords
+if(!require(RColorBrewer)){install.packages("RColorBrewer")}
+library(RColorBrewer)
+### KNN
+if(!require(FNN)){install.packages("FNN")}
+library(FNN)
+### reg com lasso e sem
+if(!require(glmnet)){install.packages("glmnet")}
+library(glmnet)
+### grafico
+if(!require(ggplot2)){install.packages("ggplot2")}
+library(ggplot2)
+if(!require(ggpubr)){install.packages("ggpubr")}
+library(ggpubr)
+if(!require(gridExtra)){install.packages("gridExtra")}
+library(gridExtra)
+### Matriz esparsa geral
+if(!require(Matrix)){install.packages("Matrix")}
+library(Matrix)
+### Random Forest
+if(!require(ranger)){install.packages("ranger")}
+library(ranger)
+### Rede neural
+if(!require(keras)){install.packages("keras")}
+library(keras)
+### XGBBoost
+if(!require(xgboost)){install.packages("xgboost")}
+library(xgboost)
+```
+
+# Exercício 1
+
+Hideki da pós.
+
+# Exercício 2
+
+## Item (a)
+
+Lendo os colunas necessárias e removendo as observações com NA.
+```{r message=FALSE, warning=FALSE}
+library(readr)
+TMDb_updated = read_csv("TMDb_updated.CSV/TMDb_updated.CSV")
+```
+
+```{r}
+### Pegando apenas as colunas indicadas pelo exercicio
+dados = TMDb_updated[,c(3,6)]
+
+#=============================================
+##### Faz o percentual do numero de NA
+pMiss <- function(x){sum(is.na(x))/length(x)*100}
+### Tem NA na coluna overview
+apply(dados,2,pMiss)
+dados1 = na.omit(dados)
+```
+
+Em seguida, faz-se o processo para obter a Matriz-Documento-Termo.
+
+```{r}
+resumo = VCorpus(VectorSource(dados1$overview),
+                 readerControl = list(languague = "en"))
+
+### Indicando as StopWords
+resumo1 =  tm_map(resumo, 
+                 removeWords, 
+                 stopwords(language = "en",source = "smart"))
+
+### Criando a matriz documento termo
+dtm = resumo1 %>%
+  DocumentTermMatrix(control = list(tolower=T,
+                                    removePunctuation = T,
+                                    removeNumbers = T,
+                                    stripWhitespace = T,
+                                    stopwords = T,
+                                    stemming = T,
+                                    weighting= weightTfIdf))
+
+### Mantem somente as palavras que 
+## se repetem mais de 5% o
+dtm2 = removeSparseTerms(dtm,0.95)
+```
+
+Ao longo de todo o exercício 2, será trabalhado com a frequência inversa normalizada (**weightTfIdf**). 
+
+```{r echo = FALSE, message=FALSE,warning=FALSE,fig.cap="Frequência inversa normalizada"}
+#=============================================
+##### Palavras mais frequentes com 
+### inverse document frequency (normalized)
+
+freq_words = col_sums(dtm2)
+name_words = names(freq_words)
+data_words = data.frame(freq_words,name_words)
+
+data_words <- data_words %>% 
+  mutate(rank = dense_rank(desc(freq_words)))
+
+graf_names_freq = 
+  ggplot(data= data_words[which(data_words$rank <= 10),], 
+         aes(x = reorder(name_words, freq_words), 
+             y =  freq_words,
+             fill = reorder(name_words, -freq_words))) +
+  scale_y_continuous(breaks = scales::pretty_breaks(n=7))+
+  geom_bar(stat="identity",width=0.6) +
+  coord_flip(clip = "off")+
+  theme_bw()+
+  theme(text = element_text(size = 14, 
+                            family ="serif"),
+        plot.title = element_text(hjust = 0.5),
+        legend.position = "none")+
+  theme(axis.text.y = element_text(face="bold", color="black", 
+                                   size=15)) +
+  labs(title = "", 
+       x = "", y = "Frequência Inversa Normalizada")
+
+graf_names_freq
+
+wordcloud(words = name_words, 
+          freq = freq_words, min.freq = 10, 
+          random.order = F, 
+          colors=brewer.pal(8,"Dark2"),
+          main="T")
+```
+
+Mas além de explorar a (**weightTfIdf**), é interessante verificar visualmente a própria frequência absoluta das palavras.
+
+```{r echo = FALSE, message=FALSE,warning=FALSE,fig.cap="Frequência absoluta"}
+#=============================================
+##### Palavras mais frequentes com 
+#### frequencia absoluta
+dtm3 = resumo1 %>%
+  DocumentTermMatrix(control = list(tolower=T,
+                                    removePunctuation = T,
+                                    removeNumbers = T,
+                                    stripWhitespace = T,
+                                    stopwords = T,
+                                    stemming = T,
+                                    weighting= weightTf))
+
+dtm4 = removeSparseTerms(dtm3,0.95)
+
+freq_words_abs = col_sums(dtm4)
+name_words_abs = names(freq_words_abs)
+data_words_abs = data.frame(freq_words_abs,name_words_abs)
+
+data_words_abs <- data_words_abs %>% 
+  mutate(rank = dense_rank(desc(freq_words_abs)))
+
+graf_names_freq_abs = 
+  ggplot(data= data_words_abs[which(data_words_abs$rank <= 10),], 
+         aes(x = reorder(name_words_abs, freq_words_abs), 
+             y =  freq_words_abs,
+             fill = reorder(name_words_abs, -freq_words_abs))) +
+  scale_y_continuous(breaks = scales::pretty_breaks(n=7))+
+  geom_bar(stat="identity",width=0.6) +
+  coord_flip(clip = "off")+
+  theme_bw()+
+  theme(text = element_text(size = 14, 
+                            family ="serif"),
+        plot.title = element_text(hjust = 0.5),
+        legend.position = "none")+
+  theme(axis.text.y = element_text(face="bold", color="black", 
+                                   size=15)) +
+  labs(title = "", 
+       x = "", y = "Frequência Absoluta")
+
+graf_names_freq_abs
+wordcloud(words = name_words_abs, 
+          freq = freq_words_abs, min.freq = 10, 
+          random.order = F, colors=brewer.pal(8,"Dark2"))
+```
+
+Divide-se os dados em treinamento, teste e validação. 
+
+```{r}
+#=============================================
+##### Data Split
+set.seed(37)
+split = sample(c("Treino","Valida","Teste"),prob=c(0.6,0.2,0.2),
+               size = nrow(dados1),replace = T)
+
+### Dividindo o variavel resposta
+notas_treino = dados1$vote_average[split == "Treino"]
+notas_valida = dados1$vote_average[split == "Valida"]
+notas_teste = dados1$vote_average[split == "Teste"]
+
+split_treino_tudo = as.logical(c(c(split == "Treino") + 
+                                   c(split == "Valida")))
+
+notas_treino_tudo = 
+  dados1$vote_average[split_treino_tudo]
+
+### Divivindo as covariaveis
+dtm_treino = dtm2[split == "Treino",]
+dtm_valida = dtm2[split == "Valida",]
+dtm_teste = dtm2[split == "Teste",]
+
+dtm_treino_tudo =
+  dtm2[split_treino_tudo,]
+
+n_teste = nrow(dtm_teste)
+```
+
+Ademais, como será calculado o risco, define-se funções para facilitar as pŕoximas operações. Salienta-se que foi escolhido o erro quadrático médio. 
+
+```{r}
+riscos = list()
+
+calcula_EQM = function(preditos,y_teste){
+  return(mean((y_teste - preditos)**2))
+}
+
+calcula_VAR_EQM = function(preditos,y_teste){
+  EQM = calcula_EQM(preditos,y_teste)
+  valor = mean(((y_teste - preditos)**2 - EQM)**2)
+  return(valor)
+}
+
+calcula_IC = function(Eqm,Var,n){
+  c(Eqm - 2*sqrt( (1/n)*Var ),
+    Eqm + 2*sqrt( (1/n)*Var ))
+}
+
+calcula_EQM_e_IC = function(preditos,y_teste,n){
+  EQM = calcula_EQM(preditos,y_teste)
+  Var = calcula_VAR_EQM(preditos,y_teste)
+  vetor = c(EQM,calcula_IC(EQM,Var,n))
+  return(vetor)
+}
+```
+
+## Item (b) - KNN
+
+Utilizando a amostra de validação, encontra-se o melhor K possível para o método do KNN.
+
+```{r}
+#=============================================
+##### Fazendo o laco do KNN com o conjunto
+#### de validacao
+
+k.grid = round(seq(1,100,length.out=50))
+erro = rep(NA,length(k.grid))
+start_time <- Sys.time()
+for(ii in seq_along(k.grid)){
+  
+  predito = knn.reg(train = dtm_treino,
+                    y = notas_treino,
+                    k=k.grid[ii],
+                    test = dtm_valida)$pred
+  
+  erro[ii] = calcula_EQM(predito,notas_valida)
+}
+end_time <- Sys.time()
+end_time - start_time
+best.k = k.grid[which.min(erro)]
+### Melhor k
+best.k
+```
+
+
+```{r echo = FALSE, message=FALSE,warning=FALSE}
+ggplot(data=data.frame(k.grid,erro),
+       aes(x=k.grid, y=erro)) +
+  geom_line(color="grey",size=2) +
+  geom_point(shape=21, color="black", fill="#69b3a2", size=3)  +
+  theme_bw()+
+  theme(text = element_text(size = 14, 
+                            family ="serif"),
+        plot.title = element_text(hjust = 0.5),
+        legend.position = "none")+
+  labs(title = "Valores de K no KNN", 
+       x = "K", y = "EQM")
+```
+Escolhido o k, basta calcular o risco e seu intervalo na amostra de teste.
+```{r}
+#=============================================
+##### Fazendo o KNN na amostra Teste
+predito_knn =
+  knn.reg(train = dtm_treino_tudo,
+          y = notas_treino_tudo,
+          k= best.k,
+          test = dtm_teste)$pred
+
+riscos$knn = calcula_EQM_e_IC(predito_knn,notas_teste,n_teste)
+riscos
+```
+
+## Item (c) - Regressão Linear 
+
+É importante enaltecer que a Matrix-Documento-Termo do pacote **tm** retorna uma matriz esparsa escrita por meio do formato **simple triplet matrix sparse**, e este não é aceito no pacote **glmnet**. Desse modo, transforma-se a Matrix-Documento-Termo em um outro formato de matrix esparsa, que é **dgCMatrix** do pacote **Matrix**.
+
+
+### Sem Lasso
+```{r}
+### Funcao para transformar de triplet matrix sparse
+## para dgCMatrix.
+CANIBAL.as.sparseMatrix <- function(simple_triplet_matrix_sparse) {
+  sparseMatrix(
+    i = simple_triplet_matrix_sparse$i,
+    j = simple_triplet_matrix_sparse$j,
+    x = simple_triplet_matrix_sparse$v,
+    dims = c(
+      simple_triplet_matrix_sparse$nrow, 
+      simple_triplet_matrix_sparse$ncol
+    ),
+    dimnames = dimnames(simple_triplet_matrix_sparse)
+  )
+}
+
+### Executando o modelo de regressao linear 
+modelo_reg_linear <- 
+  glmnet(x = CANIBAL.as.sparseMatrix(dtm_treino_tudo), 
+         y = notas_treino_tudo, 
+         alpha = 0, lambda = 0,
+         stantardize = T)
+```
+
+Obtendo-se assim os seguintes coeficientes.
+
+```{r echo = FALSE, message=FALSE,warning=FALSE,fig.cap="Coeficientes na Regressão Linear"}
+#=============================================
+##### Grafico dos Coef do Easy
+coefs_linear = 
+  data.frame(Palavra=names(coef(modelo_reg_linear)[,1]),
+             Coeficientes=coef(modelo_reg_linear)[,1])
+  
+coefs_pos_linear = coefs_linear %>%
+  arrange(desc(Coeficientes))
+
+coefs_neg_linear = coefs_linear %>%
+  arrange(Coeficientes)
+
+#sum(coefs_pos_linear[,2] > 0)
+#sum(coefs_neg_linear[,2] < 0)
+
+graf_pos_linear = 
+  ggplot(data=coefs_pos_linear[2:sum(coefs_pos_linear[,2]>0),],
+         aes(x=reorder(Palavra,Coeficientes),
+             y=Coeficientes,
+             fill=reorder(Palavra,Coeficientes)))+
+  geom_bar(stat="identity",col="white")+
+  scale_y_continuous(breaks = scales::pretty_breaks(n=7))+
+  coord_flip()+
+  scale_fill_manual(values=colorRampPalette(brewer.pal(3,"Reds"))(sum(coefs_pos_linear[,2]>0)-1) )+
+  theme_bw()+
+  theme(text = element_text(size = 14, 
+                            family ="serif"),
+        plot.title = element_text(hjust = 0.5),
+        legend.position = "none",
+        axis.text.y = element_text(face="bold", color="black", 
+                                   size=15))+
+  labs(title = "Positivos", 
+       x = "", y = "")
+
+#graf_pos_linear  
+
+graf_neg_linear = 
+  ggplot(data=coefs_neg_linear[1:sum(coefs_neg_linear[,2]<0),],
+         aes(x=reorder(Palavra,-Coeficientes),
+             y=Coeficientes,
+             fill=reorder(Palavra,-Coeficientes)))+
+  geom_bar(stat="identity",col="white")+
+  scale_y_continuous(breaks = scales::pretty_breaks(n=7))+
+  coord_flip()+
+  scale_fill_manual(values=colorRampPalette(brewer.pal(3,"Blues"))(sum(coefs_neg_linear[,2]>0)))+
+  theme_bw()+
+  theme(text = element_text(size = 14, 
+                            family ="serif"),
+        plot.title = element_text(hjust = 0.5),
+        legend.position = "none",
+        axis.text.y = element_text(face="bold", color="black", 
+                                   size=15))+
+  labs(title = "Negativos", 
+       x = "Estimativa\n", y = "")
+
+#graf_neg_linear
+
+graf_linear_coef = 
+ggarrange(graf_neg_linear,graf_pos_linear,
+          labels = c("A","B"))
+
+graf_linear_coef
+```
+Calcula-se o risco para a regressão linear.
+```{r}
+#=============================================
+##### Fazendo a Reg Linear na amostra Teste
+predito_linear = 
+  predict(modelo_reg_linear,
+          newx = CANIBAL.as.sparseMatrix(dtm_teste))
+
+riscos$RegLinear = 
+  calcula_EQM_e_IC(predito_linear,notas_teste,n_teste)
+
+riscos
+```
+
+### Com Lasso
+
+```{r}
+cv_lasso <- 
+  cv.glmnet(x=CANIBAL.as.sparseMatrix(dtm_treino_tudo),
+            y=notas_treino_tudo, 
+            alpha = 1,nfolds = 10,
+            stantardize = T)
+
+plot(cv_lasso)
+
+
+modelo_reg_lasso = 
+  glmnet(x=CANIBAL.as.sparseMatrix(dtm_treino_tudo), 
+         y=notas_treino_tudo,
+         alpha=1,
+         lambda = cv_lasso$lambda.min,
+         stantardize = T)
+```
+
+```{r echo = FALSE, message=FALSE,warning=FALSE,fig.cap="Coeficientes na Regressão Linear com o Lasso"}
+coefs_lasso = 
+  data.frame(Palavra=names(coef(modelo_reg_lasso)[,1]),
+             Coeficientes=coef(modelo_reg_lasso)[,1])
+
+coefs_lasso = coefs_lasso %>%
+  filter(Coeficientes != 0)
+
+coefs_pos_lasso = coefs_lasso %>%
+  arrange(desc(Coeficientes))
+
+coefs_neg_lasso = coefs_lasso %>%
+  arrange(Coeficientes)
+
+#sum(coefs_pos_lasso[,2] > 0)
+#sum(coefs_neg_lasso[,2] < 0)
+
+graf_pos_lasso = 
+  ggplot(data=coefs_pos_lasso[2:sum(coefs_pos_lasso[,2]>0),],
+         aes(x=reorder(Palavra,Coeficientes),
+             y=Coeficientes,
+             fill=reorder(Palavra,Coeficientes)))+
+  geom_bar(stat="identity",col="white")+
+  scale_y_continuous(breaks = scales::pretty_breaks(n=7))+
+  coord_flip()+
+  scale_fill_manual(values=colorRampPalette(brewer.pal(3,"Reds"))(sum(coefs_pos_lasso[,2]>0)-1) )+
+  theme_bw()+
+  theme(text = element_text(size = 14, 
+                            family ="serif"),
+        plot.title = element_text(hjust = 0.5),
+        legend.position = "none",
+        axis.text.y = element_text(face="bold", color="black", 
+                                   size=15))+
+  labs(title = "Positivos", 
+       x = "", y = "")
+
+#graf_pos_lasso  
+
+graf_neg_lasso = 
+  ggplot(data=coefs_neg_lasso[1:sum(coefs_pos_lasso[,2]>0),],
+         aes(x=reorder(Palavra,-Coeficientes),
+             y=Coeficientes,
+             fill=reorder(Palavra,-Coeficientes)))+
+  geom_bar(stat="identity",col="white")+
+  scale_y_continuous(breaks = scales::pretty_breaks(n=7))+
+  coord_flip()+
+  scale_fill_manual(values=colorRampPalette(brewer.pal(3,"Blues"))(sum(coefs_pos_lasso[,2]>0)))+
+  theme_bw()+
+  theme(text = element_text(size = 14, 
+                            family ="serif"),
+        plot.title = element_text(hjust = 0.5),
+        legend.position = "none",
+        axis.text.y = element_text(face="bold", color="black", 
+                                   size=15))+
+  labs(title = "Negativos", 
+       x = "Estimativa\n", y = "")
+
+#graf_neg_lasso
+
+graf_lasso_coef =
+ggarrange(graf_neg_lasso,graf_pos_lasso,
+          labels = c("A","B"))
+graf_lasso_coef
+```
+Calcula-se o risco para a regressão linear com lasso.
+```{r}
+#=============================================
+##### Fazendo a Reg Linear Lasso na amostra Teste
+predito_lasso = 
+  predict(modelo_reg_lasso,
+          newx = CANIBAL.as.sparseMatrix(dtm_teste))
+
+riscos$RegLinearLasso = 
+  calcula_EQM_e_IC(predito_lasso,notas_teste,n_teste)
+
+riscos
+```
+
+## Item (d) - Floresta Aleatória
+ 
+```{r}
+#=============================================
+##### Fazendo a floresta
+
+floresta = 
+  ranger(x = CANIBAL.as.sparseMatrix(dtm_treino_tudo),
+         y = notas_treino_tudo,
+         importance = "impurity")
+```
+
+```{r echo = FALSE, message=FALSE,warning=FALSE}
+#=============================================
+##### Fazendo Grafico de Importancia
+
+floresta_importancia = 
+  data.frame(names(importance(floresta)),
+             importance(floresta))
+
+names(floresta_importancia) = 
+  c("Covariavel","Importancia")
+
+floresta_importancia <- floresta_importancia %>% 
+  mutate(rank = dense_rank(desc(Importancia)))
+
+graf_flor_impor = 
+ggplot(data=floresta_importancia[which(floresta_importancia$rank <= 13),], 
+       aes(x = reorder(Covariavel, +Importancia), 
+           y = Importancia,
+           fill = reorder(Covariavel, +Importancia))) +
+  scale_y_continuous(breaks = scales::pretty_breaks(n=10))+
+  geom_bar(stat="identity",width=0.6) +
+  coord_flip(clip = "off")+
+  theme_bw()+
+  theme(text = element_text(size = 14, 
+                            family ="serif"),
+        plot.title = element_text(hjust = 0.5),
+        legend.position = "none")+
+  theme(axis.text.y = element_text(face="bold", color="black", 
+                                   size=15)) +
+  labs(title = "Floresta Aleatória", 
+       x = "", y = "Importancia da Variável")
+
+graf_flor_impor
+```
+
+Calcula-se o risco da floresta.
+
+```{r}
+#=============================================
+##### Fazendo o predito
+predito_floresta = 
+  predict(floresta,
+          CANIBAL.as.sparseMatrix(dtm_teste))
+
+riscos$Florestas = 
+  calcula_EQM_e_IC(predito_floresta$predictions,
+                   notas_teste,n_teste)
+
+riscos
+```
+
+## Item (e) - XGBoost
+
+```{r}
+#=============================================
+##### Mat do XGBoost
+xgb_mat_treino_tudo = 
+  xgb.DMatrix(CANIBAL.as.sparseMatrix(dtm_treino_tudo),
+              label = notas_treino_tudo)
+  
+xgb_mat_teste = 
+  xgb.DMatrix(CANIBAL.as.sparseMatrix(dtm_teste),
+              label = notas_teste)
+
+#=============================================
+##### CV do xgb para escolher a iteracao
+
+cv_xgb <- xgb.cv(data = xgb_mat_treino_tudo,
+                 nrounds = 10000,
+                 nfold = 10,
+                 early_stopping_rounds = 300,
+                 prediction = TRUE,
+                 metric = "rmse",
+                 verbose = 0,
+                 objective = "reg:squarederror")
+
+### Melhor iteracao
+cv_xgb$evaluation_log[cv_xgb$best_iteration,]
+```
+
+```{r echo = FALSE, message=FALSE,warning=FALSE,fig.cap="Early Stop no XGB"}
+xgb_dados_serie = data.frame(cv_xgb$evaluation_log$iter,
+                         cv_xgb$evaluation_log$test_rmse_mean,
+                         cv_xgb$evaluation_log$train_rmse_mean)
+
+names(xgb_dados_serie) =
+  c("Iteracao","Media_RMSE_Valida","Media_RMSE_Treino")
+
+
+graf_xgb_serie_RMSE =
+  ggplot(data = xgb_dados_serie)+
+  
+  geom_line(aes(x = Iteracao, 
+                y = Media_RMSE_Valida,
+                color = "1"),
+            size = 0.8)+
+  
+  geom_line(aes(x = Iteracao, 
+                y = Media_RMSE_Treino,
+                color = "2"),
+            size = 0.8)+
+  
+  scale_x_continuous(breaks = scales::pretty_breaks(n = 10))+
+  
+  scale_y_continuous(breaks = scales::pretty_breaks(n = 10)) +
+  
+  theme_bw()+
+  
+  theme(plot.title = element_text(hjust = 0.5),
+        text = element_text(size = 14, 
+                            family ="serif"),
+        legend.key = element_rect(colour = "white", 
+                                  fill = "white"))+
+  
+  scale_color_manual(name = "",
+                     values = c("red",
+                                "steelblue"),
+                     labels = c("Validações",
+                                "Treinos"))+
+  
+  labs(y = "Raiz do EQM",
+       x = "Iterações",
+       title = "Média da Raiz do EQM dos 10 folders")
+
+
+graf_xgb_serie_RMSE
+```
+
+Escolhido o número de iterações com o Early Stop (utilizando uma validação cruzada em todo o treino), basta criar o modelo em si.
+
+```{r}
+#=============================================
+##### Fazendo o XBG
+modelo_xgb = 
+  xgboost(data = xgb_mat_treino_tudo,
+      nrounds = cv_xgb$best_iteration,
+      eval_metric = "rmse",
+      verbose = 0,
+      objective = "reg:squarederror")
+```
+
+```{r echo = FALSE, message=FALSE,warning=FALSE}
+xgb_dados_importancia = 
+  xgb.importance(model = modelo_xgb) %>% 
+  mutate(rank = dense_rank(desc(Gain)))
+
+ggplot(data=xgb_dados_importancia[which(xgb_dados_importancia$rank <= 13),], 
+       aes(x = reorder(Feature, +Gain), 
+           y = Gain,
+           fill = reorder(Feature, -Gain))) +
+  scale_y_continuous(breaks = scales::pretty_breaks(n=10))+
+  geom_bar(stat="identity",width=0.6) +
+  coord_flip(clip = "off")+
+  theme_bw()+
+  theme(text = element_text(size = 14, 
+                            family ="serif"),
+        plot.title = element_text(hjust = 0.5),
+        legend.position = "none")+
+  theme(axis.text.y = element_text(face="bold", color="black", 
+                                   size=15)) +
+  labs(title = "XG Boost - Importância", 
+       x = "", y = "Importância")
+```
+
+Calcula-se o risco. 
+
+```{r}
+#=============================================
+##### Fazendo o predito
+predito_xgb = 
+  predict(modelo_xgb,xgb_mat_teste)
+riscos$XGBoost = 
+  calcula_EQM_e_IC(predito_xgb,notas_teste,n_teste)
+
+riscos
+```
+
+## Item (f) - Rede Meupau 
+
+A rede neural pode ser sensível aos valores observados, então é feita uma padronização (subtrai-se a média da coluna e divide-se pela variância da coluna) antes de executar a rede de fato.
+
+### Rede neural sem dropout
+
+```{r message=FALSE,warning=FALSE}
+install_keras()
+
+#=============================================
+##### Voltando com as matrizes e padronizado
+#### o treino tudo, e seus escalares sao usados 
+#### na amostra teste tambem.
+
+mat_treino_tudo = 
+  as.matrix(CANIBAL.as.sparseMatrix(dtm_treino_tudo))
+
+media_treino_tudo = data.frame(mat_treino_tudo) %>%
+  summarise_all("mean")
+
+sd_treino_tudo = data.frame(mat_treino_tudo) %>%
+  summarise_all("sd")
+
+mat_teste = 
+  as.matrix(CANIBAL.as.sparseMatrix(dtm_teste))
+
+#=============================================
+##### Forma geral da rede
+
+modelo_neural = keras_model_sequential() %>%
+  layer_dense(units=30,activation = "relu",
+              input_shape = ncol(mat_treino_tudo)) %>%
+  layer_dense(units=20,activation="relu") %>%
+  layer_dense(units=5,activation = "relu") %>%
+  layer_dense(units = 1)
+
+#=============================================
+##### Compilador da rede
+
+compile(modelo_neural,
+        loss="mse",
+        optimizer= optimizer_rmsprop(),
+        metrics = list("mean_absolute_error"))
+
+#=============================================
+##### Criterio de parada
+
+parada_rede = callback_early_stopping(
+  monitor = "val_loss",
+  min_delta = 0,
+  patience = 50,
+  verbose = 1,
+  mode = c("max"),
+  #in max mode it will stop when 
+  #the quantity monitored has stopped 
+  #increasing
+  baseline = NULL,
+  restore_best_weights = FALSE
+)
+
+#=============================================
+##### Rodando
+
+start_time <- Sys.time()
+
+historico = modelo_neural  %>%
+  fit(scale(mat_treino_tudo,
+            center=media_treino_tudo,scale=sd_treino_tudo),
+      notas_treino_tudo,
+      epochs = 200,
+      batchsize = 300,
+      validation_split=0.2,
+      verboso=T,
+      callbacks = parada_rede)
+
+end_time <- Sys.time()
+end_time - start_time
+```
+
+Pelo algoritmo executado, tem-se que a rede neural parou na época 51 de um total de 200 épocas. 
+
+```{r echo = FALSE, message=FALSE,warning=FALSE,fig.cap="Rede Neural sem dropout - Comportamente do erro ao longo das épocas"}
+plot(historico)+
+  theme_bw()+
+  theme(text = element_text(size = 14, 
+                            family ="serif"),
+        plot.title = element_text(hjust = 0.5),
+        legend.position = "none")+
+  labs(title = "", 
+       x = "Épocas", y = "")
+```
+
+Calcula-se o risco.
+
+```{r}
+#=============================================
+##### Fazendo o predito
+predito_neural = 
+  predict(modelo_neural,scale(mat_teste,
+                              center=media_treino_tudo,
+                              scale=sd_treino_tudo))
+
+riscos$Rede_SemDropOut = 
+  calcula_EQM_e_IC(predito_neural,
+                   notas_teste,n_teste)
+
+riscos
+```
+
+### Rede Neural com Dropout
+
+```{r message=FALSE,warning=FALSE} 
+#=============================================
+##### Forma geral da rede
+
+modelo_neural2 = keras_model_sequential() %>%
+  layer_dense(units=30,activation = "relu",
+              input_shape = ncol(mat_treino_tudo)) %>%
+  layer_dropout(0.2) %>%
+  layer_dense(units=20,activation="relu") %>%
+  layer_dropout(0.2) %>%
+  layer_dense(units=5,activation = "relu") %>%
+  layer_dense(units = 1)
+
+#=============================================
+##### Compilador da rede
+
+compile(modelo_neural2,
+        loss="mse",
+        optimizer= optimizer_rmsprop(),
+        metrics = list("mean_absolute_error"))
+
+#=============================================
+##### Criterio de parada
+
+parada_rede = callback_early_stopping(
+  monitor = "val_loss",
+  min_delta = 0,
+  patience = 50,
+  verbose = 1,
+  mode = c("max"),
+  #in max mode it will stop when 
+  #the quantity monitored has stopped 
+  #increasing
+  baseline = NULL,
+  restore_best_weights = FALSE
+)
+
+
+#=============================================
+##### Rodando
+
+start_time <- Sys.time()
+historico2 = modelo_neural2  %>%
+  fit(scale(mat_treino_tudo,
+            center=media_treino_tudo,scale=sd_treino_tudo),
+      notas_treino_tudo,
+      epochs = 200,
+      batchsize = 300,
+      validation_split=0.2,
+      verboso=T,
+      callbacks = parada_rede)
+
+end_time <- Sys.time()
+end_time - start_time
+```
+
+```{r echo = FALSE, message=FALSE,warning=FALSE, fig.cap="Rede neural com dropout - Comportamento ao longo das épocas"}
+plot(historico2)+
+  theme_bw()+
+  theme(text = element_text(size = 14, 
+                            family ="serif"),
+        plot.title = element_text(hjust = 0.5),
+        legend.position = "none")+
+  labs(title = "Negativos", 
+       x = "Épocas", y = "")
+```
+
+Caucula-se o risco
+
+```{r}
+#=============================================
+##### Fazendo o predito
+predito_neural2 = 
+  predict(modelo_neural2,scale(mat_teste,
+                              center=media_treino_tudo,
+                              scale=sd_treino_tudo))
+
+riscos$Rede_ComDropOut = 
+  calcula_EQM_e_IC(predito_neural2,
+                   notas_teste,n_teste)
+
+riscos
+```
+
+## Item (g) -  Kernel ridge regression
+
+Hideki da pós.
+
+## Item (h) - Preditos versus Observados
+
+```{r echo = FALSE, message=FALSE,warning=FALSE,out.width="110%",fig.height=9}
+mat_preditos = matrix(c(predito_knn),
+                      nrow = length(notas_teste),
+                      ncol = 1,byrow=T)
+
+mat_preditos = cbind(mat_preditos,
+                     predito_linear,
+                     predito_lasso,
+                     predito_floresta$predictions,
+                     predito_neural,
+                     predito_neural2,
+                     predito_xgb)
+
+lista_graf_preditos = list()
+
+for(i in 1:length(riscos)){
+  
+  predito_atual = mat_preditos[,i]
+  
+  g = ggplot(data = data.frame(predito_atual,
+                               notas_teste), 
+             aes(x= predito_atual, y= notas_teste)) + 
+    geom_point(col ="black",shape=21,
+               size=1.5,fill="white") + 
+    theme_bw() +
+    geom_abline(intercept =0 , slope = 1,color="red")+
+    scale_y_continuous(breaks = scales::pretty_breaks(n = 5))+
+    scale_x_continuous(breaks = scales::pretty_breaks(n = 5))+
+    xlab("") + 
+    ylab("") +
+    ggtitle(names(riscos)[i])+
+    theme(text = element_text(size = 14, 
+                              family ="serif"),
+          plot.title = element_text(hjust = 0.5))
+  
+  lista_graf_preditos[[i]] = g
+}
+
+graf_todos_preditos= 
+  ggarrange(lista_graf_preditos[[1]],
+             lista_graf_preditos[[2]],
+             lista_graf_preditos[[3]],
+             lista_graf_preditos[[4]],
+             lista_graf_preditos[[5]],
+             lista_graf_preditos[[6]],
+             lista_graf_preditos[[7]],
+             nrow=3,ncol=3,
+            labels = 1:7)
+
+#graf_todos_preditos
+
+annotate_figure(graf_todos_preditos,
+                top = text_grob("Notas reais e preditas para cada método\n",
+                                family = "serif",
+                                size = 20),
+                bottom = text_grob("Predito",
+                                   family = "serif",
+                                   size = 20),
+                left = text_grob("Real",
+                                 family = "serif",
+                                 size = 20,
+                                 rot = 90),
+                fig.lab.face = "bold")
+```
+
+
+
+
+
+
