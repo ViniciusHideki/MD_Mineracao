@@ -13,4 +13,4 @@ Enunciado dos exercício, bem como uma descrição sobre o que se pede.
 Banco de dados sobre o qual se aplicou os métodos
 
 ## lista1_em_RMD.Rmd
-- Resolução da lista feita por mim em Rmarkdown. 
+Resolução da lista em Rmarkdown. 
