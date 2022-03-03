@@ -10,11 +10,33 @@ Códigos da matéria de MINERAÇÃO DE DADOS da graduação em Estatística da U
 - Regressão Linear com penalização lasso
 - Regressão Linear com penalização ridge
 
-## Projeto 1 (17/02/2022)
+## Lista 2
+- Aplicação de Machine Learning Supervisionado 
+- KNN (k-nearest neighbors) com validação cruzada para escolha do k
+- Regressão linear com penalização lasso
+- Floresta Aleatória
+- XGBoost
+- Rede neural
 
-- Descritiva;
-- Análise de agrupamento;
-- Hierárquico: Método de Ward, Vizinho mais próximo, Vizinho mais longe, etc;
-- Não Hierárquico: Kmeans;
-- Medidas de avaliação (maioria do pacote NbClust do R);
-- Análise de Componentes Principais para caracterização do melhor grupo;
+## Lista 3
+- Aplicação de Machine Learning não supervisionado
+  - Árvore de Classificação (CART)
+  - Regressão logísica
+  - Naive Bayes
+  - KNN
+  - XGBoost
+  - Curva ROC
+- Problema de previsão multinomial 
+  - XGBoost independentes
+  - Rede neural 
+
+
+## ReinforcementLearning_Trabalho
+
+- Código em Python (colab)
+- Aprendizado por reforço
+- Q-Learning
+- Lago congelado com probabilidade determnísica ou não
+- Código desenvolvido em grupo (colaboradores):
+  - Luben Miguel Cruz Cabezas (colocar o email/git deles)
+  - Luiz Eduardo Piccin  (colocar o email/git deles)
