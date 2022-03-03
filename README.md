@@ -9,12 +9,13 @@ Códigos da matéria de MINERAÇÃO DE DADOS da graduação em Estatística da U
 - Regressão Linear com penalização ridge
 
 ## Lista 2
+- Bag of Words
 - Aplicação de Machine Learning Supervisionado 
-- KNN (k-nearest neighbors) com validação cruzada para escolha do k
-- Regressão linear com penalização lasso
-- Floresta Aleatória
-- XGBoost
-- Rede neural
+  - KNN (k-nearest neighbors) com validação cruzada para escolha do k
+  - Regressão linear com penalização lasso
+  - Floresta Aleatória
+  - XGBoost
+  - Rede neural
 
 ## Lista 3
 - Aplicação de Machine Learning não supervisionado
