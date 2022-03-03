@@ -1,8 +1,6 @@
 # MD_Mineracao
 Códigos da matéria de MINERAÇÃO DE DADOS da graduação em Estatística da UFSCar.
 
-- Lista: Lista com um conjunto de exercícios para se resolver. Para a graduação, são os exercícios mais práticos.
-
 ## Lista 1
 - Divisão Treino e Teste
 - Regressão por meio do pacote GLMNET do R
